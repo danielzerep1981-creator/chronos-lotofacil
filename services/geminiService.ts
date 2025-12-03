@@ -89,7 +89,10 @@ export const generateGames = async (
       contents: prompt,
     });
 
-    const jsonText = response.text || "[]";
+    let jsonText = response.text || "[]";
+    // Limpeza crítica: Remove blocos de código Markdown que a IA pode incluir
+    jsonText = jsonText.replace(/```json|```/g, '').trim();
+    
     return JSON.parse(jsonText) as GeneratedGame[];
   } catch (error) {
     console.error("Gemini API Error:", error);

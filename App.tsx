@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { generateGames } from './services/geminiService';
 import { GeneratedGame, StrategyType } from './types';
@@ -11,7 +12,8 @@ export default function App() {
   const [quickLoading, setQuickLoading] = useState(false);
   const [strategy, setStrategy] = useState<StrategyType>(StrategyType.BALANCED);
   const [count, setCount] = useState(5);
-  const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(false);
+  // Store a set of expanded indices to manage state individually
+  const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [history, setHistory] = useState<number[][]>([]); // Memory to avoid repeats
 
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -47,7 +49,7 @@ export default function App() {
     setHistory(newHistory);
     
     setLoading(false);
-    setIsAnalysisExpanded(false);
+    setExpandedIndices(new Set()); // Reset expansions
   };
 
   const handleQuickGame = async () => {
@@ -59,6 +61,16 @@ export default function App() {
       setHistory(prev => [...prev, result[0].numbers]);
     }
     setQuickLoading(false);
+  };
+
+  const toggleAnalysis = (idx: number) => {
+    const newSet = new Set(expandedIndices);
+    if (newSet.has(idx)) {
+      newSet.delete(idx);
+    } else {
+      newSet.add(idx);
+    }
+    setExpandedIndices(newSet);
   };
 
   return (
@@ -73,7 +85,7 @@ export default function App() {
       <div className="relative max-w-5xl mx-auto px-4 py-12 flex flex-col items-center z-10">
         
         {/* Header */}
-        <header className="text-center mb-12 animate-in slide-in-from-top duration-700">
+        <header className="text-center mb-12 animate-slide-up duration-700">
           <div className="inline-block mb-4 px-4 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
             <span className="text-xs font-mono tracking-[0.2em] text-neon-blue">IA GENERATIVA v2.5 • LOTOFÁCIL</span>
           </div>
@@ -87,7 +99,7 @@ export default function App() {
         </header>
 
         {/* Controls */}
-        <section className="w-full flex flex-col items-center gap-8 mb-12 animate-in fade-in duration-1000 delay-300">
+        <section className="w-full flex flex-col items-center gap-8 mb-12 animate-fade-in duration-1000 delay-300">
           
           <StrategySelector selected={strategy} onSelect={setStrategy} />
 
@@ -141,7 +153,7 @@ export default function App() {
 
         {/* Quick Game Display */}
         {quickGame && (
-           <div className="w-full max-w-3xl mb-12 animate-in zoom-in duration-500">
+           <div className="w-full max-w-3xl mb-12 animate-zoom-in duration-500">
               <div className="relative group">
                 <div className="absolute inset-0 bg-neon-green/10 blur-xl rounded-2xl group-hover:bg-neon-green/20 transition-all duration-500"></div>
                 <div className="relative glass-card border-neon-green/30 p-8 rounded-2xl">
@@ -175,7 +187,7 @@ export default function App() {
 
         {/* Main Results Grid */}
         {games.length > 0 && (
-          <div className="w-full grid grid-cols-1 gap-6 animate-in slide-in-from-bottom duration-700">
+          <div className="w-full grid grid-cols-1 gap-6 animate-slide-up duration-700">
             {games.map((game, idx) => (
               <div key={idx} className="glass-card p-6 md:p-8 rounded-2xl relative overflow-hidden group hover:border-white/20 transition-colors">
                 
@@ -213,27 +225,37 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="bg-black/40 rounded-xl p-4 border border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Análise da IA</span>
-                    {idx === 0 && ( // Only show toggle on first card or handle individually if needed
-                       <button 
-                         onClick={() => setIsAnalysisExpanded(!isAnalysisExpanded)}
-                         className="text-[10px] text-neon-blue hover:underline cursor-pointer"
-                       >
-                         {isAnalysisExpanded ? 'MINIMIZAR' : 'VER DETALHES'}
-                       </button>
-                    )}
+                {/* Refactored AI Analysis Section */}
+                <div className="bg-black/40 rounded-xl p-4 border border-white/5 transition-all duration-300 hover:border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Análise da IA</span>
+                      <div className="h-px w-12 bg-white/10"></div>
+                    </div>
+                    <button 
+                         onClick={() => toggleAnalysis(idx)}
+                         className="flex items-center gap-1 text-[10px] text-neon-blue hover:text-white transition-colors uppercase tracking-wider font-bold"
+                    >
+                         {expandedIndices.has(idx) ? 'Minimizar' : 'Ver Detalhes'}
+                         <svg 
+                           className={`w-3 h-3 transform transition-transform duration-300 ${expandedIndices.has(idx) ? 'rotate-180' : ''}`} 
+                           fill="none" 
+                           viewBox="0 0 24 24" 
+                           stroke="currentColor"
+                         >
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                         </svg>
+                    </button>
                   </div>
                   <p className="text-sm text-gray-300 leading-relaxed font-light">
-                    {isAnalysisExpanded 
+                    {/* Conditionally render truncated or full text based on expansion state */}
+                    {expandedIndices.has(idx) 
                       ? game.analysis 
-                      : game.analysis.length > 150 
-                        ? `${game.analysis.substring(0, 150)}...` 
-                        : game.analysis
+                      : (game.analysis.length > 150 ? `${game.analysis.substring(0, 150)}...` : game.analysis)
                     }
                   </p>
                 </div>
+
               </div>
             ))}
           </div>
